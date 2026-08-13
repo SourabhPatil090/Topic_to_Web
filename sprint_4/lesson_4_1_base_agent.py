@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import socket
 import urllib.request
 import urllib.error
 from dotenv import load_dotenv
@@ -30,7 +31,9 @@ class Agent:
             self.api_key = "ollama"  # Ollama server doesn't require authentication
         else:
             # Cloud OpenRouter config settings
-            self.url = "https://openrouter.ai/api/v1/chat/completions"
+            # Allow overriding the base URL via env var for deployments (Streamlit, Cloud, etc.)
+            # Use the official API hostname by default
+            self.url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1/chat/completions")
             #self.model = model or os.getenv("OPENROUTER_MODEL", "poolside/laguna-m.1:free")
             self.model = model or os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free")
             self.api_key = os.getenv("OPENROUTER_API_KEY")
@@ -102,6 +105,19 @@ class Agent:
                     if self.messages and self.messages[-1]["role"] == "user":
                         self.messages.pop()
                     return f"Error executing agent '{self.name}': HTTP Error {http_err.code}: {http_err.reason}"
+            except urllib.error.URLError as url_err:
+                # Often indicates DNS resolution failures or network connectivity problems
+                # Provide a clearer error message when getaddrinfo (DNS) fails
+                reason = url_err.reason
+                if isinstance(reason, socket.gaierror) or (isinstance(reason, OSError) and getattr(reason, 'errno', None) is None):
+                    friendly = f"DNS resolution failed for host in URL '{self.url}': {reason}"
+                else:
+                    friendly = f"URL error when connecting to '{self.url}': {reason}"
+
+                # Revert the last user message to keep memory aligned
+                if self.messages and self.messages[-1]["role"] == "user":
+                    self.messages.pop()
+                return f"Error executing agent '{self.name}': {friendly}"
             except Exception as e:
                 if attempt < max_retries - 1:
                     sleep_time = backoff * (2 ** attempt)
