@@ -32,7 +32,7 @@ class Agent:
             # Cloud OpenRouter config settings
             self.url = "https://openrouter.ai/api/v1/chat/completions"
             #self.model = model or os.getenv("OPENROUTER_MODEL", "poolside/laguna-m.1:free")
-            self.model = model or os.getenv("OPENROUTER_MODEL", "openai/gpt-oss-20b:free")
+            self.model = model or os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free")
             self.api_key = os.getenv("OPENROUTER_API_KEY")
             
             if not self.api_key:
